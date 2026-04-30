@@ -228,9 +228,7 @@ export default function Login() {
               className="w-full px-4 py-[10px] bg-white hover:bg-[#F4F5F7] text-[#172B4D] text-sm font-medium border border-[#DFE1E6] rounded cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-[10px] transition-colors duration-150 font-[inherit] shadow-[0_1px_2px_rgba(9,30,66,0.06)] leading-[1.5]"
             >
               {googleLoading ? (
-                <>
-                  <Spinner color="#172B4D" /> Signing in...
-                </>
+                <>{/* <Spinner color="#172B4D" />  */}Signing in...</>
               ) : (
                 <>
                   <GoogleIcon /> Continue with Google
