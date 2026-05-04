@@ -72,23 +72,37 @@ function MItem({ icon, label, onClick, danger }) {
   );
 }
 
+// FIX 2: Added onDoubleClick handler to open edit modal
+// FIX 3: Dropdown z-index fixed to 9999, overflow visible, no scrollbar
+// FIX 4: Done column tasks get strikethrough on title/desc
 function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEnd }) {
   const [open, sO] = useState(false);
   const [drag, sD] = useState(false);
   const ref = useRef(null);
   useOutside(ref, () => sO(false));
   const pm = PRI[task.priority] || PRI.medium;
+  const isDone = colId === "done";
 
   return (
-    <div draggable
+    <div
+      draggable
       onDragStart={(e) => { sD(true);  onDragStart(e, task); }}
       onDragEnd={()   => { sD(false); onDragEnd(); }}
-      style={{ background:"#fff", border:"1px solid #DFE1E6", borderRadius:6, padding:"12px 12px 10px",
-               cursor:"grab", position:"relative", userSelect:"none",
-               boxShadow: drag ? "0 8px 24px rgba(9,30,66,.18)" : "0 1px 2px rgba(9,30,66,.06)",
-               opacity: drag ? .45 : 1,
-               transform: drag ? "rotate(1.5deg) scale(1.02)" : "none",
-               transition:"box-shadow .15s, opacity .15s, transform .15s" }}
+      // FIX 2: double click anywhere on card opens edit modal
+      onDoubleClick={() => onEdit(task)}
+      style={{
+        background:"#fff",
+        border:"1px solid #DFE1E6",
+        borderRadius:6,
+        padding:"12px 12px 10px",
+        cursor:"grab",
+        position:"relative",
+        userSelect:"none",
+        boxShadow: drag ? "0 8px 24px rgba(9,30,66,.18)" : "0 1px 2px rgba(9,30,66,.06)",
+        opacity: drag ? .45 : 1,
+        transform: drag ? "rotate(1.5deg) scale(1.02)" : "none",
+        transition:"box-shadow .15s, opacity .15s, transform .15s",
+      }}
       onMouseEnter={(e) => { if (!drag) { e.currentTarget.style.boxShadow="0 3px 12px rgba(9,30,66,.14)"; e.currentTarget.style.borderColor="#B3BAC5"; }}}
       onMouseLeave={(e) => { if (!drag) { e.currentTarget.style.boxShadow="0 1px 2px rgba(9,30,66,.06)"; e.currentTarget.style.borderColor="#DFE1E6"; }}}
     >
@@ -97,13 +111,39 @@ function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEn
         {task.tag
           ? <span style={{ fontSize:11, fontWeight:600, color:"#5E6C84", background:"#F4F5F7", padding:"2px 7px", borderRadius:3, letterSpacing:".02em" }}>{task.tag}</span>
           : <span/>}
+
+        {/* FIX 3: dropdown wrapper with position relative, z-index 9999, no overflow/scrollbar */}
         <div ref={ref} style={{ position:"relative", marginLeft:"auto" }}>
-          <button onClick={(e) => { e.stopPropagation(); sO(o=>!o); }}
-            style={{ background:"none", border:"none", cursor:"pointer", padding:"2px 4px", borderRadius:4, color:"#97A0AF", display:"flex" }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); sO(o=>!o); }}
+            style={{ background:"none", border:"none", cursor:"pointer", padding:"2px 4px", borderRadius:4, color:"#97A0AF", display:"flex" }}
+          >
             <Ic.Dots style={{ width:16, height:16 }}/>
           </button>
           {open && (
-            <div style={{ position:"absolute", right:0, top:"calc(100% + 4px)", background:"#fff", border:"1px solid #DFE1E6", borderRadius:6, boxShadow:"0 8px 24px rgba(9,30,66,.16)", zIndex:300, minWidth:176, overflow:"hidden" }}>
+            <div
+              style={{
+                position:"fixed",   // FIX 3: fixed positioning so it always renders above everything
+                zIndex:9999,        // FIX 3: very high z-index
+                background:"#fff",
+                border:"1px solid #DFE1E6",
+                borderRadius:6,
+                boxShadow:"0 8px 24px rgba(9,30,66,.16)",
+                minWidth:176,
+                overflow:"visible",  // FIX 3: no scrollbar
+              }}
+              // FIX 3: position it correctly using getBoundingClientRect via inline ref callback
+              ref={el => {
+                if (el && ref.current) {
+                  const btn = ref.current.querySelector("button");
+                  if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    el.style.top  = (rect.bottom + 4) + "px";
+                    el.style.left = (rect.right - 176) + "px";
+                  }
+                }
+              }}
+            >
               <MItem icon={<Ic.Edit style={{ width:14, height:14 }}/>} label="Edit task"   onClick={() => { sO(false); onEdit(task); }}/>
               <div style={{ borderTop:"1px solid #F4F5F7" }}>
                 <div style={{ padding:"4px 14px 3px", fontSize:11, fontWeight:700, color:"#97A0AF", textTransform:"uppercase", letterSpacing:".06em" }}>Move to</div>
@@ -122,10 +162,34 @@ function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEn
           )}
         </div>
       </div>
-      <p style={{ margin:"0 0 8px", fontSize:14, fontWeight:500, color:"#172B4D", lineHeight:1.45, wordBreak:"break-word" }}>{task.title}</p>
-      {task.desc && <p style={{ margin:"0 0 10px", fontSize:12, color:"#6B778C", lineHeight:1.4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{task.desc}</p>}
+
+      {/* FIX 4: strikethrough title and desc when in done column */}
+      <p style={{
+        margin:"0 0 8px",
+        fontSize:14,
+        fontWeight:500,
+        color: isDone ? "#97A0AF" : "#172B4D",
+        lineHeight:1.45,
+        wordBreak:"break-word",
+        textDecoration: isDone ? "line-through" : "none",
+        transition:"color .2s, text-decoration .2s",
+      }}>{task.title}</p>
+
+      {task.desc && (
+        <p style={{
+          margin:"0 0 10px",
+          fontSize:12,
+          color: isDone ? "#B3BAC5" : "#6B778C",
+          lineHeight:1.4,
+          overflow:"hidden",
+          textOverflow:"ellipsis",
+          whiteSpace:"nowrap",
+          textDecoration: isDone ? "line-through" : "none",
+        }}>{task.desc}</p>
+      )}
+
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:4 }}>
-        <span style={{ fontSize:11, fontWeight:600, color:pm.color, background:pm.bg, padding:"2px 8px", borderRadius:10 }}>{pm.label}</span>
+        <span style={{ fontSize:11, fontWeight:600, color: isDone ? "#97A0AF" : pm.color, background: isDone ? "#F4F5F7" : pm.bg, padding:"2px 8px", borderRadius:10 }}>{pm.label}</span>
         <div style={{ width:24, height:24, borderRadius:"50%", background:"#0052CC", display:"flex", alignItems:"center", justifyContent:"center" }}>
           <span style={{ fontSize:10, fontWeight:700, color:"#fff" }}>{(auth.currentUser?.displayName||"U")[0].toUpperCase()}</span>
         </div>
@@ -134,6 +198,7 @@ function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEn
   );
 }
 
+// FIX 1: minHeight on drop zone changed to accommodate at least 2 task cards (~180px each = ~380px)
 function KanbanCol({ colId, tasks, onAdd, onEdit, onDelete, onMove, onDragStart, onDragEnd, onDrop }) {
   const m = COL[colId];
   const [over, sOv] = useState(false);
@@ -147,15 +212,23 @@ function KanbanCol({ colId, tasks, onAdd, onEdit, onDelete, onMove, onDragStart,
         <span style={{ fontSize:12, fontWeight:700, color:"#5E6C84", textTransform:"uppercase", letterSpacing:".06em", flex:1 }}>{m.label}</span>
         <span style={{ fontSize:12, fontWeight:700, color:"#6B778C", background:"#EBECF0", borderRadius:10, padding:"1px 8px", minWidth:20, textAlign:"center" }}>{tasks.length}</span>
       </div>
-      {/* drop zone */}
+      {/* FIX 1: minHeight increased to ~2 task heights (each ~130px + gaps) so bg shows for at least 2 tasks */}
       <div
         onDragOver={(e) => { e.preventDefault(); sOv(true); }}
         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) sOv(false); }}
         onDrop={(e)     => { e.preventDefault(); sOv(false); onDrop(colId); }}
-        style={{ flex:1, background: over ? m.hbg : m.bg, borderRadius:8, padding:10,
-                 display:"flex", flexDirection:"column", gap:8, minHeight:160,
-                 border: over ? `2px dashed ${m.dot}` : "2px dashed transparent",
-                 transition:"background .15s, border-color .15s" }}
+        style={{
+          flex:1,
+          background: over ? m.hbg : m.bg,
+          borderRadius:8,
+          padding:10,
+          display:"flex",
+          flexDirection:"column",
+          gap:8,
+          minHeight:300,   // FIX 1: enough height for ~2 task cards
+          border: over ? `2px dashed ${m.dot}` : "2px dashed transparent",
+          transition:"background .15s, border-color .15s",
+        }}
       >
         {tasks.map(t => (
           <TaskCard key={t.id} task={t} colId={colId}
@@ -331,8 +404,8 @@ export default function Dashboard() {
   const [tasks,      sTasks]  = useState([]);
   const [modal,      sModal]  = useState(null);
   const [search,     sSearch] = useState("");
-  const [sidebar,    sSide]   = useState(true);     
-  const [mobileOpen, sMob]    = useState(false);   
+  const [sidebar,    sSide]   = useState(true);
+  const [mobileOpen, sMob]    = useState(false);
   const [avatarMenu, sAM]     = useState(false);
   const [saving,     sSaving] = useState(false);
   const [loadingT,   sLT]     = useState(false);
@@ -356,12 +429,10 @@ export default function Dashboard() {
       list.sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
       sProj(list);
 
-
       const saved = localStorage.getItem(LS_KEY);
       const found = list.find(p => p.id === saved);
       sAP(prev => {
         if (prev) {
-          // refresh data if project still exists (handles project rename etc.)
           const refresh = list.find(p => p.id === prev.id);
           return refresh || (list[0] ?? null);
         }
@@ -373,7 +444,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!activeProj || !user) { sTasks([]); return; }
-    sTasks([]);         
+    sTasks([]);
     sLT(true);
     const q = query(
       collection(db, "tasks"),
@@ -423,7 +494,7 @@ export default function Dashboard() {
     sModal(null);
   };
 
-  /* ── FIX 3: project CRUD (create + DELETE) ── */
+  /* ── project CRUD ── */
   const createProject = async (data) => {
     sSaving(true);
     try {
@@ -436,12 +507,10 @@ export default function Dashboard() {
 
   const deleteProject = async () => {
     const pid = modal.projectId;
-    // delete all tasks in project first
     const q = query(collection(db,"tasks"), where("projectId","==",pid), where("ownerId","==",user.uid));
     const snap = await new Promise(res => { const u = onSnapshot(q, s => { u(); res(s); }); });
     await Promise.all(snap.docs.map(d => deleteDoc(doc(db,"tasks",d.id))));
     await deleteDoc(doc(db,"projects",pid));
-    // if we just deleted the active project, clear it
     sAP(prev => {
       if (prev?.id === pid) { localStorage.removeItem(LS_KEY); return null; }
       return prev;
@@ -480,7 +549,6 @@ export default function Dashboard() {
         ::-webkit-scrollbar-track{background:#F1F2F4}
         ::-webkit-scrollbar-thumb{background:#C1C7D0;border-radius:3px}
 
-        /* ── sidebar base ── */
         .ds-side{
           width:242px; min-width:242px;
           background:#1D2125;
@@ -490,7 +558,6 @@ export default function Dashboard() {
         }
         .ds-side.collapsed{ width:0!important; min-width:0!important; }
 
-        /* ── mobile: sidebar becomes fixed drawer ── */
         @media(max-width:768px){
           .ds-side{
             position:fixed!important; left:0; top:0;
@@ -527,14 +594,12 @@ export default function Dashboard() {
 
         {/* ══ SIDEBAR ══ */}
         <aside className={`ds-side${!sidebar?" collapsed":""}${mobileOpen?" mob-open":""}`}>
-          {/* logo */}
           <div style={{ padding:"14px 16px 12px", borderBottom:"1px solid #2C333A", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
             <Ic.Jira/>
             <span style={{ fontSize:17, fontWeight:700, color:"#4C9AFF", letterSpacing:".09em" }}>JIRA</span>
           </div>
 
           <div style={{ flex:1, overflowY:"auto", padding:"14px 0 20px" }}>
-            {/* projects */}
             <div style={{ padding:"0 10px 10px" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8, padding:"0 4px" }}>
                 <span style={{ fontSize:11, fontWeight:700, color:"#8C9BAB", letterSpacing:".08em", textTransform:"uppercase" }}>Projects</span>
@@ -566,7 +631,6 @@ export default function Dashboard() {
                       <span style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{proj.name}</span>
                       {active && <Ic.ChevR style={{ width:13, height:13, opacity:.5 }}/>}
                     </button>
-                    {/* FIX 3: project delete button */}
                     <button
                       onClick={() => sModal({ type:"deleteProject", projectId:proj.id, projectName:proj.name })}
                       title={`Delete ${proj.name}`}
@@ -580,7 +644,6 @@ export default function Dashboard() {
               })}
             </div>
 
-            {/* recent */}
             {projects.length > 0 && (
               <div style={{ padding:"14px 10px 0", borderTop:"1px solid #2C333A", marginTop:6 }}>
                 <div style={{ padding:"0 4px 8px" }}>
@@ -607,7 +670,6 @@ export default function Dashboard() {
           <header className="ds-nav"
             style={{ height:54, background:"#1D2125", borderBottom:"1px solid #2C333A", display:"flex", alignItems:"center", padding:"0 18px", gap:10, flexShrink:0 }}>
 
-            {/* hamburger */}
             <button
               onClick={() => {
                 if (window.innerWidth <= 768) sMob(o=>!o);
@@ -619,13 +681,11 @@ export default function Dashboard() {
               <Ic.Menu style={{ width:18, height:18 }}/>
             </button>
 
-            {/* logo (shows when sidebar collapsed, always on mobile) */}
             <div className="ds-nav-logo" style={{ display: sidebar ? "none":"flex", alignItems:"center", gap:7, marginRight:4 }}>
               <Ic.Jira/>
               <span style={{ fontSize:15, fontWeight:700, color:"#4C9AFF", letterSpacing:".08em" }}>JIRA</span>
             </div>
 
-            {/* breadcrumb */}
             <div className="ds-breadcrumb" style={{ display:"flex", alignItems:"center", gap:5, flex:1, overflow:"hidden", minWidth:0 }}>
               <span style={{ fontSize:13, color:"#6B778C", whiteSpace:"nowrap" }}>Projects</span>
               <span style={{ color:"#3D4551", fontSize:14 }}>/</span>
@@ -635,7 +695,6 @@ export default function Dashboard() {
             </div>
             <div style={{ flex:1 }}/>
 
-            {/* search */}
             <div className="ds-search" style={{ position:"relative", display:"flex", alignItems:"center" }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ position:"absolute", left:10, pointerEvents:"none" }}>
                 <circle cx="6.5" cy="6.5" r="4.5" stroke="#6B778C" strokeWidth="1.5"/>
@@ -647,7 +706,6 @@ export default function Dashboard() {
                 onBlur={e =>{ e.target.style.borderColor="#3D4551"; e.target.style.background="#2C333A"; }}/>
             </div>
 
-            {/* create */}
             <button
               onClick={() => { if (activeProj) sModal({ type:"create", defaultStatus:"backlog" }); }}
               disabled={!activeProj}
@@ -657,7 +715,6 @@ export default function Dashboard() {
               <Ic.Plus style={{ width:15, height:15 }}/> Create
             </button>
 
-            {/* avatar */}
             <div ref={avatarRef} style={{ position:"relative", flexShrink:0 }}>
               <button onClick={() => sAM(o=>!o)}
                 style={{ width:34, height:34, borderRadius:"50%", background:"#0052CC", border:avatarMenu?"2px solid #4C9AFF":"2px solid transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"border .12s" }}>
@@ -678,7 +735,6 @@ export default function Dashboard() {
           {/* ── BOARD ── */}
           <div className="ds-board-wrap" style={{ flex:1, overflowY:"auto", padding:"24px 28px", minWidth:0 }}>
             {!activeProj ? (
-              /* empty state */
               <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"65%", gap:14 }}>
                 <div style={{ width:68, height:68, borderRadius:"50%", background:"#EBECF0", display:"flex", alignItems:"center", justifyContent:"center" }}>
                   <Ic.Folder style={{ width:30, height:30, color:"#6B778C" }}/>
@@ -692,7 +748,6 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
-                {/* project header */}
                 <div style={{ marginBottom:22 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
                     <div style={{ width:28, height:28, borderRadius:6, background:activeProj.color, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -708,7 +763,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* kanban */}
                 <div className="ds-cols" style={{ display:"flex", gap:14, alignItems:"flex-start", overflowX:"auto", paddingBottom:20 }}>
                   {COLUMNS.map(col => (
                     <KanbanCol key={col} colId={col}
@@ -756,5 +810,5 @@ export default function Dashboard() {
         <NewProjectModal onClose={()=>sModal(null)} onCreate={createProject} saving={saving}/>
       )}
     </>
-  );0
+  );
 }
