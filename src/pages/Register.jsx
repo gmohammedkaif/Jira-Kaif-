@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Imgage from "../assets/jira-kaif.jpg";
+import { FcGoogle } from "react-icons/fc";
 import {
   createUserWithEmailAndPassword,
   signInWithPopup,
@@ -13,17 +14,6 @@ function Spinner({ color = "#fff" }) {
     <svg className="animate-spin w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="3" strokeOpacity="0.25" />
       <path d="M12 2a10 10 0 0 1 10 10" stroke={color} strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg className="shrink-0" width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.251 17.64 11.943 17.64 9.2z" fill="#4285F4" />
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853" />
-      <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.167.282-1.707V4.961H.957A9 9 0 0 0 0 9c0 1.452.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05" />
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" fill="#EA4335" />
     </svg>
   );
 }
@@ -243,17 +233,6 @@ export default function Register() {
     <div className="min-h-screen bg-[#F4F5F7] flex flex-col items-center justify-center px-4 py-8 font-['Segoe_UI',-apple-system,BlinkMacSystemFont,'Helvetica_Neue',Arial,sans-serif]">
       <div className="w-full max-w-[420px] animate-[fade-up_0.35s_ease_both]">
         <div className="flex items-center justify-center gap-[10px] mb-7">
-          {/* <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          zaid kaif  <path d="M16 0C7.163 0 0 7.163 0 16s7.163 16 16 16 16-7.163 16-16S24.837 0 16 0z" fill="#2684FF" />
-            <path d="M16 6.4L8.8 13.6 16 20.8l7.2-7.2L16 6.4z" fill="white" />
-            <path d="M16 13.2L8.8 20.4 16 27.6l7.2-7.2L16 13.2z" fill="url(#rg1)" />
-            <defs>
-              <linearGradient id="rg1" x1="16" y1="13.2" x2="16" y2="27.6" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#0052CC" />
-                <stop offset="1" stopColor="#2684FF" />
-              </linearGradient>
-            </defs>
-          </svg> */}
            <img className="w-[34px] h-[34px]" src={Imgage} alt="" />
 
           <span className="text-[22px] font-bold text-[#0052CC] tracking-[0.1em]">
@@ -286,11 +265,11 @@ export default function Register() {
           >
             {googleLoading ? (
               <>
-                <Spinner color="#172B4D" /> Signing up...
+                {/* <Spinner color="#172B4D" /> */ "Signing up... "}
               </>
             ) : (
               <>
-                <GoogleIcon /> Sign up with Google
+                <FcGoogle /> Sign up with Google
               </>
             )}
           </button>
@@ -375,7 +354,7 @@ export default function Register() {
             >
               {loading ? (
                 <>
-                  <Spinner /> Creating account...
+                  {/* <Spinner />  */"Creating account..." }
                 </>
               ) : (
                 "Create account"

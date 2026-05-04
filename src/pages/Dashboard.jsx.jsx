@@ -7,9 +7,6 @@ import { signOut, onAuthStateChanged } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "../services/firebase";
 
-/* ══════════════════════════════════════════════════════════════════════════
-   CONSTANTS
-══════════════════════════════════════════════════════════════════════════ */
 const COLUMNS = ["backlog", "inprogress", "inreview", "done"];
 const COL = {
   backlog:    { label: "Backlog",     dot: "#6B778C", bg: "#EBECF0", hbg: "#DFE1E6" },
@@ -25,9 +22,6 @@ const PRI = {
 const PROJ_COLORS = ["#6554C0","#0052CC","#00875A","#DE350B","#FF8B00","#00B8D9","#36B37E","#6B778C"];
 const LS_KEY = "jira_active_project_id";
 
-/* ══════════════════════════════════════════════════════════════════════════
-   ICONS
-══════════════════════════════════════════════════════════════════════════ */
 const Ic = {
   Plus:  (p) => <svg {...p} viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   Dots:  (p) => <svg {...p} viewBox="0 0 16 16" fill="none"><circle cx="2.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="13.5" cy="8" r="1.3" fill="currentColor"/></svg>,
@@ -51,9 +45,6 @@ const Ic = {
   ),
 };
 
-/* ══════════════════════════════════════════════════════════════════════════
-   SHARED STYLES
-══════════════════════════════════════════════════════════════════════════ */
 const T = {
   lbl: { fontSize:11, fontWeight:700, color:"#6B778C", letterSpacing:".05em", textTransform:"uppercase" },
   inp: { padding:"9px 12px", fontSize:14, color:"#172B4D", background:"#FAFBFC", border:"2px solid #DFE1E6", borderRadius:4, outline:"none", fontFamily:"inherit", boxSizing:"border-box", width:"100%", transition:"border-color .15s, box-shadow .15s" },
@@ -63,9 +54,6 @@ const T = {
 const fOn  = (e) => { e.target.style.borderColor="#4C9AFF"; e.target.style.boxShadow="0 0 0 2px rgba(76,154,255,.2)"; };
 const fOff = (e) => { e.target.style.borderColor="#DFE1E6"; e.target.style.boxShadow="none"; };
 
-/* ══════════════════════════════════════════════════════════════════════════
-   HOOKS
-══════════════════════════════════════════════════════════════════════════ */
 function useOutside(ref, cb) {
   useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) cb(); };
@@ -74,9 +62,6 @@ function useOutside(ref, cb) {
   });
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   SMALL COMPONENTS
-══════════════════════════════════════════════════════════════════════════ */
 function MItem({ icon, label, onClick, danger }) {
   const [h, sH] = useState(false);
   return (
@@ -87,9 +72,6 @@ function MItem({ icon, label, onClick, danger }) {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   TASK CARD
-══════════════════════════════════════════════════════════════════════════ */
 function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEnd }) {
   const [open, sO] = useState(false);
   const [drag, sD] = useState(false);
@@ -152,9 +134,6 @@ function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEn
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   KANBAN COLUMN
-══════════════════════════════════════════════════════════════════════════ */
 function KanbanCol({ colId, tasks, onAdd, onEdit, onDelete, onMove, onDragStart, onDragEnd, onDrop }) {
   const m = COL[colId];
   const [over, sOv] = useState(false);
@@ -198,9 +177,7 @@ function KanbanCol({ colId, tasks, onAdd, onEdit, onDelete, onMove, onDragStart,
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   TASK MODAL
-══════════════════════════════════════════════════════════════════════════ */
+
 function TaskModal({ mode, task, defaultStatus, onClose, onSave, saving }) {
   const [title, sT]  = useState(task?.title    || "");
   const [desc,  sD]  = useState(task?.desc     || "");
@@ -261,9 +238,7 @@ function TaskModal({ mode, task, defaultStatus, onClose, onSave, saving }) {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   NEW PROJECT MODAL
-══════════════════════════════════════════════════════════════════════════ */
+
 function NewProjectModal({ onClose, onCreate, saving }) {
   const [name, sN] = useState("");
   const [key,  sK] = useState("");
@@ -315,9 +290,7 @@ function NewProjectModal({ onClose, onCreate, saving }) {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   CONFIRM MODAL  (generic — used for task delete AND project delete)
-══════════════════════════════════════════════════════════════════════════ */
+
 function ConfirmModal({ title, body, confirmLabel, confirmColor, onClose, onConfirm }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(9,30,66,.55)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
@@ -340,9 +313,6 @@ function ConfirmModal({ title, body, confirmLabel, confirmColor, onClose, onConf
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   MAIN DASHBOARD
-══════════════════════════════════════════════════════════════════════════ */
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -356,14 +326,13 @@ export default function Dashboard() {
     return unsub;
   }, [navigate]);
 
-  /* ── state ── */
   const [projects,   sProj]   = useState([]);
   const [activeProj, sAP]     = useState(null);
   const [tasks,      sTasks]  = useState([]);
   const [modal,      sModal]  = useState(null);
   const [search,     sSearch] = useState("");
-  const [sidebar,    sSide]   = useState(true);      // desktop toggle
-  const [mobileOpen, sMob]    = useState(false);     // mobile drawer
+  const [sidebar,    sSide]   = useState(true);     
+  const [mobileOpen, sMob]    = useState(false);   
   const [avatarMenu, sAM]     = useState(false);
   const [saving,     sSaving] = useState(false);
   const [loadingT,   sLT]     = useState(false);
@@ -373,14 +342,12 @@ export default function Dashboard() {
   const taskCntRef = useRef(0);
   useOutside(avatarRef, () => sAM(false));
 
-  /* ── FIX 1: persist active project id across reloads ── */
   const setActive = useCallback((proj) => {
     sAP(proj);
     if (proj) localStorage.setItem(LS_KEY, proj.id);
     else      localStorage.removeItem(LS_KEY);
   }, []);
 
-  /* ── load projects ── */
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, "projects"), where("ownerId","==",user.uid));
@@ -389,7 +356,7 @@ export default function Dashboard() {
       list.sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
       sProj(list);
 
-      // restore persisted selection
+
       const saved = localStorage.getItem(LS_KEY);
       const found = list.find(p => p.id === saved);
       sAP(prev => {
@@ -404,10 +371,9 @@ export default function Dashboard() {
     return unsub;
   }, [user]);
 
-  /* ── FIX 2: clear stale tasks BEFORE loading new project's tasks ── */
   useEffect(() => {
     if (!activeProj || !user) { sTasks([]); return; }
-    sTasks([]);           // ← clears ghost tasks immediately
+    sTasks([]);         
     sLT(true);
     const q = query(
       collection(db, "tasks"),
@@ -502,9 +468,6 @@ export default function Dashboard() {
 
   if (!user) return null;
 
-  /* ══════════════════════════════════════════════════════════════════════
-     RENDER
-  ══════════════════════════════════════════════════════════════════════ */
   return (
     <>
       {/* ── global styles ── */}
@@ -793,5 +756,5 @@ export default function Dashboard() {
         <NewProjectModal onClose={()=>sModal(null)} onCreate={createProject} saving={saving}/>
       )}
     </>
-  );
+  );0
 }
