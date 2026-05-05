@@ -6,6 +6,7 @@ import {
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "../services/firebase";
+import ReactDOM from "react-dom";
 
 const COLUMNS = ["backlog", "inprogress", "inreview", "done"];
 const COL = {
@@ -62,6 +63,66 @@ function useOutside(ref, cb) {
   });
 }
 
+/* ── Full-screen loader shown on initial load ── */
+function AppLoader() {
+  return (
+    <div style={{
+      position: "fixed", inset: 0,
+      background: "#F1F2F4",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      zIndex: 9999,
+      gap: 20,
+    }}>
+      <style>{`
+        @keyframes jira-spin {
+          0%   { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes jira-pulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.5; }
+        }
+      `}</style>
+
+      {/* Spinning ring */}
+      <div style={{ position: "relative", width: 56, height: 56 }}>
+        <div style={{
+          width: 56, height: 56,
+          border: "4px solid #DFE1E6",
+          borderTop: "4px solid #0052CC",
+          borderRadius: "50%",
+          animation: "jira-spin 0.8s linear infinite",
+        }}/>
+        {/* Jira icon in center */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="16" fill="#2684FF"/>
+            <path d="M16 6.4L8.8 13.6 16 20.8l7.2-7.2z" fill="white"/>
+            <path d="M16 13.2L8.8 20.4 16 27.6l7.2-7.2z" fill="url(#lg-loader)"/>
+            <defs>
+              <linearGradient id="lg-loader" x1="16" y1="13.2" x2="16" y2="27.6" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#0052CC"/><stop offset="1" stopColor="#2684FF"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <span style={{
+        fontSize: 13, fontWeight: 600, color: "#6B778C",
+        letterSpacing: ".04em",
+        animation: "jira-pulse 1.4s ease-in-out infinite",
+      }}>
+        Loading board…
+      </span>
+    </div>
+  );
+}
+
 function MItem({ icon, label, onClick, danger }) {
   const [h, sH] = useState(false);
   return (
@@ -72,34 +133,80 @@ function MItem({ icon, label, onClick, danger }) {
   );
 }
 
-// FIX 2: Added onDoubleClick handler to open edit modal
-// FIX 3: Dropdown z-index fixed to 9999, overflow visible, no scrollbar
-// FIX 4: Done column tasks get strikethrough on title/desc
 function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEnd }) {
   const [open, sO] = useState(false);
   const [drag, sD] = useState(false);
-  const ref = useRef(null);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0 });
+  const ref    = useRef(null);
+  const btnRef = useRef(null);
   useOutside(ref, () => sO(false));
-  const pm = PRI[task.priority] || PRI.medium;
+  const pm     = PRI[task.priority] || PRI.medium;
   const isDone = colId === "done";
+
+  const openDropdown = (e) => {
+    e.stopPropagation();
+    if (!open) {
+      const rect       = btnRef.current.getBoundingClientRect();
+      const menuWidth  = 176;
+      const menuHeight = 220;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top  = spaceBelow >= menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
+      const left = rect.right - menuWidth;
+      setDropPos({ top, left });
+    }
+    sO(o => !o);
+  };
+
+  /* Portal: renders into document.body so no parent overflow clips it */
+  const dropdown = open ? ReactDOM.createPortal(
+    <div
+      ref={ref}
+      style={{
+        position: "fixed",
+        top:  dropPos.top,
+        left: dropPos.left,
+        zIndex: 99999,
+        background: "#fff",
+        border: "1px solid #DFE1E6",
+        borderRadius: 6,
+        boxShadow: "0 8px 24px rgba(9,30,66,.16)",
+        minWidth: 176,
+      }}
+    >
+      <MItem icon={<Ic.Edit style={{ width:14, height:14 }}/>} label="Edit task" onClick={() => { sO(false); onEdit(task); }}/>
+      <div style={{ borderTop:"1px solid #F4F5F7" }}>
+        <div style={{ padding:"4px 14px 3px", fontSize:11, fontWeight:700, color:"#97A0AF", textTransform:"uppercase", letterSpacing:".06em" }}>Move to</div>
+        {COLUMNS.filter(c => c !== colId).map(c => (
+          <MItem key={c}
+            icon={<span style={{ width:8, height:8, borderRadius:"50%", background:COL[c].dot, display:"inline-block" }}/>}
+            label={COL[c].label}
+            onClick={() => { sO(false); onMove(task.id, c); }}
+          />
+        ))}
+      </div>
+      <div style={{ borderTop:"1px solid #F4F5F7" }}>
+        <MItem icon={<Ic.Trash style={{ width:14, height:14 }}/>} label="Delete task" onClick={() => { sO(false); onDelete(task.id); }} danger/>
+      </div>
+    </div>,
+    document.body
+  ) : null;
 
   return (
     <div
       draggable
       onDragStart={(e) => { sD(true);  onDragStart(e, task); }}
       onDragEnd={()   => { sD(false); onDragEnd(); }}
-      // FIX 2: double click anywhere on card opens edit modal
       onDoubleClick={() => onEdit(task)}
       style={{
-        background:"#fff",
-        border:"1px solid #DFE1E6",
-        borderRadius:6,
-        padding:"12px 12px 10px",
-        cursor:"grab",
-        position:"relative",
-        userSelect:"none",
+        background: "#fff",
+        border: "1px solid #DFE1E6",
+        borderRadius: 6,
+        padding: "12px 12px 10px",
+        cursor: "grab",
+        position: "relative",
+        userSelect: "none",
         boxShadow: drag ? "0 8px 24px rgba(9,30,66,.18)" : "0 1px 2px rgba(9,30,66,.06)",
-        opacity: drag ? .45 : 1,
+        opacity:   drag ? .45 : 1,
         transform: drag ? "rotate(1.5deg) scale(1.02)" : "none",
         transition:"box-shadow .15s, opacity .15s, transform .15s",
       }}
@@ -112,84 +219,37 @@ function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEn
           ? <span style={{ fontSize:11, fontWeight:600, color:"#5E6C84", background:"#F4F5F7", padding:"2px 7px", borderRadius:3, letterSpacing:".02em" }}>{task.tag}</span>
           : <span/>}
 
-        {/* FIX 3: dropdown wrapper with position relative, z-index 9999, no overflow/scrollbar */}
-        <div ref={ref} style={{ position:"relative", marginLeft:"auto" }}>
+        <div style={{ marginLeft:"auto" }}>
           <button
-            onClick={(e) => { e.stopPropagation(); sO(o=>!o); }}
+            ref={btnRef}
+            onClick={openDropdown}
             style={{ background:"none", border:"none", cursor:"pointer", padding:"2px 4px", borderRadius:4, color:"#97A0AF", display:"flex" }}
           >
             <Ic.Dots style={{ width:16, height:16 }}/>
           </button>
-          {open && (
-            <div
-              style={{
-                position:"fixed",   // FIX 3: fixed positioning so it always renders above everything
-                zIndex:9999,        // FIX 3: very high z-index
-                background:"#fff",
-                border:"1px solid #DFE1E6",
-                borderRadius:6,
-                boxShadow:"0 8px 24px rgba(9,30,66,.16)",
-                minWidth:176,
-                overflow:"visible",  // FIX 3: no scrollbar
-              }}
-              // FIX 3: position it correctly using getBoundingClientRect via inline ref callback
-              ref={el => {
-                if (el && ref.current) {
-                  const btn = ref.current.querySelector("button");
-                  if (btn) {
-                    const rect = btn.getBoundingClientRect();
-                    el.style.top  = (rect.bottom + 4) + "px";
-                    el.style.left = (rect.right - 176) + "px";
-                  }
-                }
-              }}
-            >
-              <MItem icon={<Ic.Edit style={{ width:14, height:14 }}/>} label="Edit task"   onClick={() => { sO(false); onEdit(task); }}/>
-              <div style={{ borderTop:"1px solid #F4F5F7" }}>
-                <div style={{ padding:"4px 14px 3px", fontSize:11, fontWeight:700, color:"#97A0AF", textTransform:"uppercase", letterSpacing:".06em" }}>Move to</div>
-                {COLUMNS.filter(c=>c!==colId).map(c => (
-                  <MItem key={c}
-                    icon={<span style={{ width:8, height:8, borderRadius:"50%", background:COL[c].dot, display:"inline-block" }}/>}
-                    label={COL[c].label}
-                    onClick={() => { sO(false); onMove(task.id, c); }}
-                  />
-                ))}
-              </div>
-              <div style={{ borderTop:"1px solid #F4F5F7" }}>
-                <MItem icon={<Ic.Trash style={{ width:14, height:14 }}/>} label="Delete task" onClick={() => { sO(false); onDelete(task.id); }} danger/>
-              </div>
-            </div>
-          )}
+          {dropdown}
         </div>
       </div>
 
-      {/* FIX 4: strikethrough title and desc when in done column */}
       <p style={{
-        margin:"0 0 8px",
-        fontSize:14,
-        fontWeight:500,
+        margin:"0 0 8px", fontSize:14, fontWeight:500,
         color: isDone ? "#97A0AF" : "#172B4D",
-        lineHeight:1.45,
-        wordBreak:"break-word",
+        lineHeight:1.45, wordBreak:"break-word",
         textDecoration: isDone ? "line-through" : "none",
         transition:"color .2s, text-decoration .2s",
       }}>{task.title}</p>
 
       {task.desc && (
         <p style={{
-          margin:"0 0 10px",
-          fontSize:12,
+          margin:"0 0 10px", fontSize:12,
           color: isDone ? "#B3BAC5" : "#6B778C",
-          lineHeight:1.4,
-          overflow:"hidden",
-          textOverflow:"ellipsis",
-          whiteSpace:"nowrap",
+          lineHeight:1.4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
           textDecoration: isDone ? "line-through" : "none",
         }}>{task.desc}</p>
       )}
 
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:4 }}>
-        <span style={{ fontSize:11, fontWeight:600, color: isDone ? "#97A0AF" : pm.color, background: isDone ? "#F4F5F7" : pm.bg, padding:"2px 8px", borderRadius:10 }}>{pm.label}</span>
+        <span style={{ fontSize:11, fontWeight:600, color:isDone?"#97A0AF":pm.color, background:isDone?"#F4F5F7":pm.bg, padding:"2px 8px", borderRadius:10 }}>{pm.label}</span>
         <div style={{ width:24, height:24, borderRadius:"50%", background:"#0052CC", display:"flex", alignItems:"center", justifyContent:"center" }}>
           <span style={{ fontSize:10, fontWeight:700, color:"#fff" }}>{(auth.currentUser?.displayName||"U")[0].toUpperCase()}</span>
         </div>
@@ -198,7 +258,6 @@ function TaskCard({ task, colId, onEdit, onDelete, onMove, onDragStart, onDragEn
   );
 }
 
-// FIX 1: minHeight on drop zone changed to accommodate at least 2 task cards (~180px each = ~380px)
 function KanbanCol({ colId, tasks, onAdd, onEdit, onDelete, onMove, onDragStart, onDragEnd, onDrop }) {
   const m = COL[colId];
   const [over, sOv] = useState(false);
@@ -206,26 +265,18 @@ function KanbanCol({ colId, tasks, onAdd, onEdit, onDelete, onMove, onDragStart,
 
   return (
     <div className="k-col" style={{ display:"flex", flexDirection:"column", flex:"1 1 240px", minWidth:230, maxWidth:310 }}>
-      {/* header */}
       <div style={{ display:"flex", alignItems:"center", gap:8, padding:"0 2px 10px" }}>
         <span style={{ width:10, height:10, borderRadius:"50%", background:m.dot, flexShrink:0 }}/>
         <span style={{ fontSize:12, fontWeight:700, color:"#5E6C84", textTransform:"uppercase", letterSpacing:".06em", flex:1 }}>{m.label}</span>
         <span style={{ fontSize:12, fontWeight:700, color:"#6B778C", background:"#EBECF0", borderRadius:10, padding:"1px 8px", minWidth:20, textAlign:"center" }}>{tasks.length}</span>
       </div>
-      {/* FIX 1: minHeight increased to ~2 task heights (each ~130px + gaps) so bg shows for at least 2 tasks */}
       <div
         onDragOver={(e) => { e.preventDefault(); sOv(true); }}
         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) sOv(false); }}
         onDrop={(e)     => { e.preventDefault(); sOv(false); onDrop(colId); }}
         style={{
-          flex:1,
-          background: over ? m.hbg : m.bg,
-          borderRadius:8,
-          padding:10,
-          display:"flex",
-          flexDirection:"column",
-          gap:8,
-          minHeight:300,   // FIX 1: enough height for ~2 task cards
+          flex:1, background: over ? m.hbg : m.bg, borderRadius:8, padding:10,
+          display:"flex", flexDirection:"column", gap:8, minHeight:300,
           border: over ? `2px dashed ${m.dot}` : "2px dashed transparent",
           transition:"background .15s, border-color .15s",
         }}
@@ -249,7 +300,6 @@ function KanbanCol({ colId, tasks, onAdd, onEdit, onDelete, onMove, onDragStart,
     </div>
   );
 }
-
 
 function TaskModal({ mode, task, defaultStatus, onClose, onSave, saving }) {
   const [title, sT]  = useState(task?.title    || "");
@@ -311,7 +361,6 @@ function TaskModal({ mode, task, defaultStatus, onClose, onSave, saving }) {
   );
 }
 
-
 function NewProjectModal({ onClose, onCreate, saving }) {
   const [name, sN] = useState("");
   const [key,  sK] = useState("");
@@ -363,7 +412,6 @@ function NewProjectModal({ onClose, onCreate, saving }) {
   );
 }
 
-
 function ConfirmModal({ title, body, confirmLabel, confirmColor, onClose, onConfirm }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(9,30,66,.55)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
@@ -390,11 +438,20 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   /* ── auth guard ── */
-  const [user, setUser] = useState(() => auth.currentUser);
+  const [user,       setUser]  = useState(null);
+  // authReady: true once onAuthStateChanged fires for the first time
+  const [authReady,  setAR]    = useState(false);
+  // projReady: true once the first projects snapshot arrives
+  const [projReady,  setPR]    = useState(false);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
-      if (!u) navigate("/login", { replace: true });
-      else setUser(u);
+      if (!u) {
+        navigate("/login", { replace: true });
+      } else {
+        setUser(u);
+      }
+      setAR(true); // auth is confirmed either way
     });
     return unsub;
   }, [navigate]);
@@ -438,6 +495,9 @@ export default function Dashboard() {
         }
         return found || list[0] || null;
       });
+
+      // Mark projects as ready after first snapshot
+      setPR(true);
     });
     return unsub;
   }, [user]);
@@ -535,6 +595,10 @@ export default function Dashboard() {
   const byCol = (col) => filtered.filter(t => t.status===col);
   const ini   = (n)   => (n||"U").split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
 
+  // Show loader until auth is confirmed AND (if user exists) projects have loaded once
+  const isLoading = !authReady || (user && !projReady);
+  if (isLoading) return <AppLoader />;
+
   if (!user) return null;
 
   return (
@@ -542,6 +606,8 @@ export default function Dashboard() {
       {/* ── global styles ── */}
       <style>{`
         @keyframes mpop { from{transform:scale(.94);opacity:0} to{transform:scale(1);opacity:1} }
+        @keyframes jira-spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+        @keyframes jira-pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
         *,*::before,*::after{box-sizing:border-box}
         html,body{margin:0;padding:0;height:100%;background:#F1F2F4}
         input,textarea,select,button{font-family:inherit}
@@ -619,8 +685,7 @@ export default function Dashboard() {
                 const active = activeProj?.id===proj.id;
                 return (
                   <div key={proj.id} style={{ display:"flex", alignItems:"center", borderRadius:6, marginBottom:2,
-                    background:active?"#2C333A":"transparent",
-                    transition:"background .12s" }}
+                    background:active?"#2C333A":"transparent", transition:"background .12s" }}
                     onMouseEnter={e=>{ if (!active) e.currentTarget.style.background="#252B30"; }}
                     onMouseLeave={e=>{ if (!active) e.currentTarget.style.background="transparent"; }}>
                     <button onClick={() => { setActive(proj); sMob(false); }}
